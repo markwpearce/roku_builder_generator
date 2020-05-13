@@ -9,40 +9,50 @@ module RokuBuilderGenerator
     attr_accessor :name, :extends, :template_type
 
 
-    def initialize(name, extends, template_type)
+    def initialize(name, extends, template_type, logger = nil)
       @name = name
       @extends = extends
       @template_type = template_type
+      @logger = logger
     end
 
     def render(file_type)
       file_name = get_template_name(@template_type, file_type)
 
       unless file_name.nil?
-        template = File.open(file_name, "+r")
+        template = File.read(file_name)
         return render_template(template)
       end
       return nil
     end
 
-    private
+    def log(message)
+      unless @logger.nil?
+        @logger.info message
+      else
+        puts message
+      end
+    end
 
     def get_template_name(template_type, file_type)
       file_name =  "#{template_type}.#{file_type}.erb"
-      local_file = "./roku-generator/"+file_name
+      local_file = "./#{RokuBuilderGenerator::NAME}/"+file_name
       gem_file = RokuBuilderGenerator::Utils.gem_libdir+"/templates/#{file_name}"
       if File.exist?(local_file)
-        puts "#{file_type}: Using local version of template - #{local_file}"
+        log "#{file_type}: Using local version of template - #{local_file}"
         return local_file
       elsif  File.exist?(gem_file)
-        puts "#{file_type}: Using local version of template - #{gem_file}"
+        log "#{file_type}: Using gem version of template - #{gem_file}"
         return gem_file
       end
-      return nil
+      if template_type === "default"
+        return nil
+      end
+      return get_template_name("default", file_type)
     end
 
     def render_template(template)
-       return ERB.new(template).result(binding)
+      return ERB.new(template).result(binding)
     end
 
 

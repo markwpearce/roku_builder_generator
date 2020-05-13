@@ -1,6 +1,22 @@
-# ********** Copyright Viacom, Inc. Apache 2.0 **********
 require 'erb'
+require 'fileutils'
 require_relative '../../roku_builder_generator'
+
+
+def default_config()
+  return {:component_dir => "brands/core/components", :config_dir => "brands/core/region/US/configs"}
+end
+
+def default_output_dir(component_type, base_dir = nil)
+  base_dir = base_dir || default_config[:component_dir]
+  return "#{base_dir}/#{component_type.capitalize()}s"
+end
+
+def default_config_dir(component_type, base_dir = nil)
+  base_dir = base_dir || default_config[:config_dir]
+   return "#{base_dir}/#{component_type.capitalize()}s"
+end
+
 
 module RokuBuilder
 
@@ -23,9 +39,20 @@ module RokuBuilder
     end
 
 
-    def default_output_dir(component_type)
-     # return "#{@config.project[:directory]}/brands/core/components/#{component_type.capitalize()}s"
-      return "brands/core/components/#{component_type.capitalize()}s"
+    def get_output_dir( component_type, component_name, parent_dir = nil, custom_dir = nil, base_component_dir = nil )
+      output_dir = get_directory_name(component_type, component_name)
+      unless parent_dir.nil? || "" === parent_dir
+        output_dir = parent_dir+"/"+output_dir
+      end
+      base_dir = custom_dir ? custom_dir : default_output_dir(component_type, base_component_dir)
+      return "./#{base_dir}/#{output_dir}"
+
+    end
+
+    def get_config_output_dir( component_type, custom_dir = nil, base_config_dir = nil )
+      base_dir = custom_dir ? custom_dir : default_config_dir(component_type, base_config_dir)
+      return "./#{base_dir}"
+
     end
 
     # Hook to add options to the parser
@@ -34,23 +61,31 @@ module RokuBuilder
     def self.parse_options(parser:,  options:)
       parser.separator "Commands:"
       parser.on("--generate COMPONENT_TYPE", "Generate a component: manager, module, task, screen") do |component_type|
-        options[:generate] = component
+        options[:generate] = component_type
       end
       parser.on("--name COMPONENT_NAME", "Name of the component") do |component_name|
         options[:name] = component_name
       end
       parser.on("--extends COMPONENT_NAME", "A component to extend") do |component_name|
-       option[:extends] = component_name
+       options[:extends] = component_name
       end
-      parser.on("--base-dir", "Base directory for generated code (default: '#{default_output_dir('type')}')") do |base_dir|
-        option[:use_custom_dir] = true
-        options[:base_dir] = base_dir
+      parser.on("--base-dir", "Base directory for generated code (eg.: '#{default_output_dir('<type>')}')") do |base_dir|
+        options[:custom_dir] = base_dir
+      end
+      parser.on("--with-config", "Add empty config JSON") do |d|
+        options[:with_config] = true
+      end
+      parser.on("--config-dir", "Use custom directory for config json (eg.: '#{default_config_dir('<type>')}')") do |d|
+        options[:config_dir] = d
+      end
+      parser.on("--dry-run", "Do not write files, just output") do |d|
+        options[:dry_run] = true
       end
     end
 
     # Array of plugins the this plugin depends on
     def self.dependencies
-    #  [Linker]
+      []
     end
 
     def init
@@ -59,22 +94,27 @@ module RokuBuilder
 
 
     def get_file_name(component_type, name)
-      name = name.capitalize()
-      if(component_type == 'screen' && !name.endWith?("Screen"))
+      name = name.slice(0,1).capitalize + name.slice(1..-1)
+      if(component_type == 'screen' && !name.end_with?("Screen"))
         return name+ "Screen"
       end
-      if(component_type === 'Manager'&& !name.endWith?("Manager"))
+      if(component_type === 'manager'&& !name.end_with?("Manager"))
         return name+'Manager'
       end
       return name
     end
 
     def get_directory_name(component_type, name)
-      name = name.capitalize()
-      if(component_type === 'Manager'&& !name.endWith?("Manager"))
+      name = name.slice(0,1).capitalize + name.slice(1..-1)
+      if(component_type === 'manager'&& !name.end_with?("Manager"))
         return name+'Manager'
       end
       return name
+    end
+
+    def component_has_config_json(component_type)
+      ['module', 'screen', 'manager'].include? component_type
+
     end
 
     def generate(options:)
@@ -84,151 +124,83 @@ module RokuBuilder
       if(!options[:generate])
         raise InvalidOptions, "Missing component type"
       end
-      component_type = options[:generate]
-      name = options[:name]
-      component = new RokuBuilderGenerator::BrsComponent(name, options[:extends], component_type)
+      config = read_config()
+      component_type = options[:generate].downcase
+      component_name_parts = options[:name].split('/')
+      component_proper_name = component_name_parts.last
+      component_parent_dir = component_name_parts.first(component_name_parts.size-1).join('/')
+
+      component_name = get_file_name(component_type, component_proper_name)
+      component = RokuBuilderGenerator::BrsComponent.new(component_name, options[:extends], component_type, @logger)
       xml_text = component.render("xml")
       brs_text = component.render("brs")
+      json_text = options[:with_config] && component_has_config_json(component_type) ? component.render("json") : nil
 
-      puts "XML"
-      puts xml_text
-      puts "BRS"
-      puts brs_text
+      output_dir = get_output_dir(component_type, component_name, component_parent_dir, options[:custom_dir], config[:component_dir])
+      output_config_dir = get_config_output_dir(component_type, options[:config_dir], config[:config_dir])
+      output_file_name = File.join(output_dir, component_name)
+      output_config_file_name = File.join(output_config_dir, component_proper_name)
 
-    end def
-=begin
-    # Sample command
-    # Method name must match the key in the commands hash
-    def lazy_debug(options:)
-      @logger.unknown "Starting LazyDebug"
-      @debug_config = read_config()
-      loop do
-        begin
-          socket = TCPSocket.open(@roku_ip_address, 54333)
-          @logger.unknown "Started Connection"
-          monitor = Thread.new {
-            monitor_socket(socket)
-          }
-          monitor.abort_on_exception = true
-          monitor[:timestamp] = Time.now
-          loop do
-            sleep 5
-            if (Time.now - monitor[:timestamp]) > 4
-              raise Errno::ETIMEDOUT
-            end
-          end
-        rescue IOError => e
-          @logger.info "IOError #{e.message}"
-          monitor.kill if monitor
-        rescue Errno::ECONNRESET => e
-          @logger.info "Connection Reset #{e.message}"
-          monitor.kill if monitor
-        rescue Errno::ETIMEDOUT => e
-          @logger.info "Connection Reset #{e.message}"
-          monitor.kill if monitor
-        end
-      end
-    end
-
-    def set_debug_values(options:)
-      unless options[:stage]
-        raise InvalidOptions, "Missing Stage option"
-      end
-      @debug_config = read_config()
-      debug_values = @debug_config[:debugValues]
-      dev_debug_values = @debug_config[:devDebugValues]
-      deeplink_options = []
-      if debug_values
-        deeplink_options.push("debugValuesJson:"+CGI.escape(debug_values.to_json))
-      end
-      if dev_debug_values
-        deeplink_options.push("devDebugValuesJson:"+CGI.escape(dev_debug_values.to_json))
-      end
-      options[:deeplink] = deeplink_options.join(",")
-      puts options[:deeplink]
-      Linker.new(config: @config).deeplink(options: options)
-    end
-
-    def monitor_socket(socket)
-      loop do
-        line = socket.gets
-        if line and not line.empty?
-          @logger.debug "Recieved Line"
-          @logger.debug line
-          data = JSON.parse(line, {symbolize_names: true})
-          handle_data(data, socket)
-        end
-      end
-    end
-    def handle_data(data, socket)
-      case data[:command]
-      when "stayAwake"
-        Thread.current[:timestamp] = Time.now
-      when "setBrand"
-        @logger.debug "Set brand: #{data[:value]}"
-        @brand = data[:value].to_sym
-        socket.puts({command: "setBrand", success: true}.to_json)
-      when "getData"
-        @logger.debug "Retreving Data: #{data[:value]}"
-        requested_data = @debug_config[data[:value].to_sym]
-        if requested_data
-          send_data = requested_data[:data].deep_dup
-          counts = requested_data[:counts]
-          counts[@brand] ||= 1
-          write_config(@debug_config)
-          counts[@brand] += 1 if data[:nextcount]
-          replace_strings(send_data, {brand: @brand, count: counts[@brand]})
-          counts[@brand] -= 1 if data[:nextcount]
-          socket.puts({command: "getData", success: true, value: send_data}.to_json)
-        else
-          socket.puts({command: "getData", success: false}.to_json)
-        end
-      when "incrementCount"
-        requested_data = @debug_config[data[:value].to_sym]
-        if requested_data
-          counts = requested_data[:counts]
-          counts[@brand] ||= 0
-          counts[@brand] += 1
-          write_config(@debug_config)
-        end
+      if(options[:dry_run])
+        @logger.unknown "Dry Run, not writing files"
+        show_line()
+        display_file(output_file_name+".xml", xml_text)
+        display_file(output_file_name+".brs", brs_text)
+        display_file(output_config_file_name+".json", json_text)
       else
-        socket.puts({command: data[:command], success: false}.to_json)
+        @logger.unknown "Writing files"
+        show_line()
+        FileUtils.mkdir_p output_dir
+        unless json_text.nil?
+          FileUtils.mkdir_p output_config_dir
+        end
+        write_file(output_file_name+".xml", xml_text)
+        write_file(output_file_name+".brs", brs_text)
+        write_file(output_config_file_name+".json", json_text)
       end
     end
+
+
+    def display_file(output_file_name, contents)
+      unless contents.nil?
+        @logger.unknown output_file_name
+        @logger.info "\n"+ contents
+        show_line
+      end
+    end
+
+    def write_file(output_file_name, contents)
+      unless contents.nil?
+        @logger.unknown output_file_name
+        File.open(output_file_name, "w") { |f| f.write contents }
+      end
+    end
+
+    def show_line
+      @logger.info  "------"
+    end
+
+    def config_path()
+      config_json_file =  "./.roku_builder_generator.json"
+      unless File.exist?(config_json_file)
+        @logger.warn "Missing Generator Config File (#{config_json_file}) - using default values"
+        return nil
+      end
+      return config_json_file
+    end
+
     def read_config()
-      config = nil
-      File.open(config_path) do |io|
-        config = JSON.parse(io.read, {symbolize_names: true})
+      config = default_config
+      unless config_path.nil?
+        File.open(config_path) do |io|
+          config.merge!(JSON.parse(io.read, {symbolize_names: true}))
+        end
       end
       config
     end
-    def write_config(config)
-      File.open(config_path, "w") do |io|
-        io.write(JSON.pretty_generate(config))
-      end
-    end
-    def config_path()
-      file = File.join(@config.project[:directory], ".roku_builder_lazy_debug.json")
-      unless File.exist?(file)
-        @logger.fatal "Missing Config File"
-        exit
-      end
-      return file
-    end
 
-    def replace_strings(config, replacements)
-      config.each_key do |key|
-        if config[key].class == String
-          replacements.each_pair do |replace, value|
-            config[key].gsub!("{#{replace}}", value.to_s)
-          end
-        elsif config[key].class = Hash
-          replace_strings(config[key], replacements)
-        end
-      end
-    end
   end
-=end
+
 
 # Register your plugin
   RokuBuilder.register_plugin(Generator)
