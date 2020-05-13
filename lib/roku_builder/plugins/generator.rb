@@ -4,7 +4,11 @@ require_relative '../../roku_builder_generator'
 
 
 def default_config()
-  return {:component_dir => "brands/core/components", :config_dir => "brands/core/region/US/configs"}
+  return {
+    :component_dir => "brands/core/components",
+    :config_dir => "brands/core/region/US/configs",
+    :template_dir => "roku_builder_generator"
+  }
 end
 
 def default_output_dir(component_type, base_dir = nil)

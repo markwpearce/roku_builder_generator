@@ -9,11 +9,12 @@ module RokuBuilderGenerator
     attr_accessor :name, :extends, :template_type
 
 
-    def initialize(name, extends, template_type, logger = nil)
+    def initialize(name, extends, template_type, logger = nil, local_file_dir = nil)
       @name = name
       @extends = extends
       @template_type = template_type
       @logger = logger
+      @local_file_dir = local_file_dir || RokuBuilderGenerator::NAME
     end
 
     def render(file_type)
@@ -36,7 +37,7 @@ module RokuBuilderGenerator
 
     def get_template_name(template_type, file_type)
       file_name =  "#{template_type}.#{file_type}.erb"
-      local_file = "./#{RokuBuilderGenerator::NAME}/"+file_name
+      local_file = "./#{@local_file_dir}/#{file_name}"
       gem_file = RokuBuilderGenerator::Utils.gem_libdir+"/templates/#{file_name}"
       if File.exist?(local_file)
         log "#{file_type}: Using local version of template - #{local_file}"
