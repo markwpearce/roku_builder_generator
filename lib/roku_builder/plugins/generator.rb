@@ -145,7 +145,7 @@ module RokuBuilder
       component_name_parts = options[:name].split('/')
       component_proper_name = capitalizeFirst(component_name_parts.last)
       component_parent_dir = component_name_parts.first(component_name_parts.size-1).join('/')
-      brand = brand.downcase
+      brand =  options[:brand].downcase
 
       component_name = get_file_name(component_type, component_proper_name)
       component = RokuBuilderGenerator::BrsComponent.new(component_name, options[:extends], component_type, @logger)
