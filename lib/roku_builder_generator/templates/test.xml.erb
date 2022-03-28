@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- ##COPYRIGHT HEADER## -->
+
+<component name="Test_<%= name %>" extends="<%= name %>">
+  <!--     Function, used by framework, to run tests. Should not be called manually! -->
+  <interface>
+    <function name="TestFramework__RunNodeTests"/>
+  </interface>
+
+  <!--     Import test suites. -->
+  <script type="text/brightscript" uri="Test_<%= name %>.brs" />
+  <script type="text/brightscript" uri="Test_<%= name %>.setup.brs" />
+
+  <!--     Import test framework. -->
+  <script type="text/brightscript" uri="pkg:/source/UnitTestFramework.brs"/>
+</component>

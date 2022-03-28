@@ -7,6 +7,7 @@ def default_config()
   return {
     :component_dir => "brands/%brand%/components",
     :config_dir => "brands/%brand%/region/US/configs",
+    :unitTests_dir => "brands/unit-tests/components/tests",
     :template_dir => "roku_builder_generator"
   }
 end
@@ -20,6 +21,11 @@ end
 def default_config_dir(component_type, brand = 'core', base_dir = nil)
   base_dir = base_dir || default_config[:config_dir]
   base_dir = replace_brand(base_dir, brand)
+  return "#{base_dir}/#{component_type.capitalize()}s"
+end
+
+def default_unitTests_dir(component_type, base_dir = nil)
+  base_dir = base_dir || default_config[:unitTests_dir]
   return "#{base_dir}/#{component_type.capitalize()}s"
 end
 
@@ -65,6 +71,11 @@ module RokuBuilder
       return "./#{base_dir}"
     end
 
+    def get_unitTests_output_dir(component_type, custom_dir = nil )
+      base_dir = !custom_dir.nil? ? custom_dir : default_unitTests_dir(component_type)
+      return "./#{base_dir}"
+    end
+
     # Hook to add options to the parser
     # The keys set in options for commands must match the keys in the commands
     #   hash
@@ -92,6 +103,16 @@ module RokuBuilder
       end
       parser.on("--config-dir", "Use custom directory for config json (eg.: '#{default_config_dir('<type>')}')") do |d|
         options[:config_dir] = d
+      end
+      parser.on("--with-tests", "Add unit tests") do |d|
+        options[:with_tests] = true
+      end
+      parser.on("--only-tests", "Only unit tests") do |d|
+        options[:only_tests] = true
+        options[:with_tests] = true
+      end
+      parser.on("--tests-dir", "Use custom directory for unit tests (eg.: '#{default_unitTests_dir('<type>')}')") do |d|
+        options[:tests_dir] = d
       end
       parser.on("--dry-run", "Do not write files, just output") do |d|
         options[:dry_run] = true
@@ -130,7 +151,6 @@ module RokuBuilder
 
     def component_has_config_json(component_type)
       ['module', 'screen', 'manager'].include? component_type
-
     end
 
     def generate(options:)
@@ -153,27 +173,52 @@ module RokuBuilder
       brs_text = component.render("brs")
       json_text = options[:with_config] && component_has_config_json(component_type) ? component.render("json") : nil
 
+      test_xml_text = options[:with_tests] ? component.renderTest("xml") : nil
+      test_brs_text = options[:with_tests] ? component.renderTest("brs") : nil
+      testSetup_brs_text = options[:with_tests] ? component.renderTestSetup() : nil
+
       output_dir = get_output_dir(component_type, component_name, brand, component_parent_dir, options[:custom_dir], config[:component_dir])
       output_config_dir = get_config_output_dir(component_type,  brand, options[:config_dir])
       output_file_name = File.join(output_dir, component_name)
       output_config_file_name = File.join(output_config_dir, component_proper_name)
 
+      output_unitTests_dir = get_unitTests_output_dir(component_type, options[:config_dir])
+
+      test_component_name= "Test_"+component_proper_name
+
+      output_test_file_name = File.join(output_unitTests_dir, test_component_name)
+      output_test_setup_file_name= File.join(output_unitTests_dir, test_component_name+".setup")
+
       if(options[:dry_run])
         @logger.unknown "Dry Run, not writing files"
         show_line()
-        display_file(output_file_name+".xml", xml_text)
-        display_file(output_file_name+".brs", brs_text)
-        display_file(output_config_file_name+".json", json_text)
+        unless options[:only_tests]
+          display_file(output_file_name+".xml", xml_text)
+          display_file(output_file_name+".brs", brs_text)
+          display_file(output_config_file_name+".json", json_text)
+        end
+
+        display_file(output_test_file_name+".xml", test_xml_text)
+        display_file(output_test_file_name+".brs", test_brs_text)
+        display_file(output_test_setup_file_name+".brs", testSetup_brs_text)
       else
         @logger.unknown "Writing files"
         show_line()
-        FileUtils.mkdir_p output_dir
-        unless json_text.nil?
-          FileUtils.mkdir_p output_config_dir
+        unless options[:only_tests]
+          FileUtils.mkdir_p output_dir
+          unless json_text.nil?
+            FileUtils.mkdir_p output_config_dir
+          end
+          write_file(output_file_name+".xml", xml_text)
+          write_file(output_file_name+".brs", brs_text)
+          write_file(output_config_file_name+".json", json_text)
         end
-        write_file(output_file_name+".xml", xml_text)
-        write_file(output_file_name+".brs", brs_text)
-        write_file(output_config_file_name+".json", json_text)
+        unless test_xml_text.nil?
+          FileUtils.mkdir_p output_unitTests_dir
+        end
+        write_file(output_test_file_name+".xml", test_xml_text)
+        write_file(output_test_file_name+".brs", test_brs_text)
+        write_file(output_test_setup_file_name+".brs", testSetup_brs_text)
       end
     end
 

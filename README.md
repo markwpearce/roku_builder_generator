@@ -31,6 +31,10 @@ Options:
         --base-dir                   Base directory for generated brs/xml code (eg.: 'brands/core/components/<type>s')
         --with-config                Add empty config JSON
         --config-dir                 Use custom directory for config json (eg.: 'brands/core/region/US/configs/<type>s')
+        --with-tests                 Add unit tests
+        --only-tests                 Only unit tests
+        --tests-dir                  Use custom directory for unit tests
+
 ```
 
 ### Examples
@@ -42,6 +46,10 @@ Generate a manager called "FooManager", with an empty configuration JSON file:
 Generate a task ("Bar"), but just display the output on screen:
 
 `roku --generate task --name bar --dry-run -V`
+
+Generate a module ("Buz"), and also generate config and unit tests
+
+`roku --generate module --name buz --with-config --with-tests`
 
 ### Config
 

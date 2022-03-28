@@ -27,6 +27,26 @@ module RokuBuilderGenerator
       return nil
     end
 
+    def renderTest(file_type)
+      file_name = get_template_name("test", file_type)
+
+      unless file_name.nil?
+        template = File.read(file_name)
+        return render_template(template)
+      end
+      return nil
+    end
+
+    def renderTestSetup()
+      file_name = get_template_name("test.setup", "brs")
+
+      unless file_name.nil?
+        template = File.read(file_name)
+        return render_template(template)
+      end
+      return nil
+    end
+
     def log(message)
       unless @logger.nil?
         @logger.info message
