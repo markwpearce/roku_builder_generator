@@ -1,4 +1,4 @@
-function TestSuite_<%= name %>_Setup()
+function TestSuite__<%= name %>_Setup()
   ' Inherit your test suite from BaseTestSuite
   this = BaseTestSuite()
 
@@ -11,10 +11,10 @@ function TestSuite_<%= name %>_Setup()
   return this
 end function
 
-function TestCase_Example()
+function TestCase_Config_Exists()
   config = getGlobalAA().channelConfig
-  codebox = getGlobalAA().codebox
+  top = getGlobalAA().top
 
   m.assertNotInvalid(config)
-  m.assertNotInvalid(codebox)
+  return m.assertNotInvalid(top)
 end function

@@ -71,9 +71,10 @@ module RokuBuilder
       return "./#{base_dir}"
     end
 
-    def get_unitTests_output_dir(component_type, custom_dir = nil )
+    def get_unitTests_output_dir(component_type, component_name, custom_dir = nil )
+      output_dir = get_directory_name(component_type, component_name)
       base_dir = !custom_dir.nil? ? custom_dir : default_unitTests_dir(component_type)
-      return "./#{base_dir}"
+      return "./#{base_dir}/#{output_dir}"
     end
 
     # Hook to add options to the parser
@@ -182,12 +183,12 @@ module RokuBuilder
       output_file_name = File.join(output_dir, component_name)
       output_config_file_name = File.join(output_config_dir, component_proper_name)
 
-      output_unitTests_dir = get_unitTests_output_dir(component_type, options[:config_dir])
+      output_unitTests_dir = get_unitTests_output_dir(component_type, component_proper_name, options[:tests_dir])
 
       test_component_name= "Test_"+component_proper_name
 
       output_test_file_name = File.join(output_unitTests_dir, test_component_name)
-      output_test_setup_file_name= File.join(output_unitTests_dir, test_component_name+".setup")
+      output_test_setup_file_name= File.join(output_unitTests_dir, test_component_name+"_Setup")
 
       if(options[:dry_run])
         @logger.unknown "Dry Run, not writing files"

@@ -38,7 +38,7 @@ module RokuBuilderGenerator
     end
 
     def renderTestSetup()
-      file_name = get_template_name("test.setup", "brs")
+      file_name = get_template_name("test_Setup", "brs")
 
       unless file_name.nil?
         template = File.read(file_name)
