@@ -5,16 +5,28 @@ function TestSuite__<%= name %>_Setup()
   ' Test suite name for log statistics
   this.Name = "TestSuite_<%= name %>_Setup"
 
+  ' Add AssertHelper
+  m.assertHelper = getAssertHelper(this)
+  this.assertHelper = m.assertHelper
+
+  ' adds reference to the "private" assocArray we're testing
+  this.self = m
+
   ' Add tests to suite's tests collection
   this.addTest("TestCase_Config_Exists", TestCase_Config_Exists)
 
   return this
 end function
 
+
 function TestCase_Config_Exists()
+  resetTestSuite(m)
+
   config = getGlobalAA().channelConfig
   top = getGlobalAA().top
 
-  m.assertNotInvalid(config)
-  return m.assertNotInvalid(top)
+  m.assertHelper.assertNotInvalid(config, LINE_NUM)
+  m.assertHelper.assertNotInvalid(top, LINE_NUM)
+  m.assertHelper.assertNotInvalid(m.self, LINE_NUM)
+  return m.assertHelper.check()
 end function
