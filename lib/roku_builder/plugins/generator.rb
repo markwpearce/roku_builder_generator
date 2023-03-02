@@ -82,7 +82,6 @@ module RokuBuilder
     #   hash
     def self.parse_options(parser:,  options:)
       parser.separator "Commands:"
-      options[:brand] = 'core'
       parser.on("--generate COMPONENT_TYPE", "Generate a component: manager, module, task, screen") do |component_type|
         options[:generate] = component_type
       end
@@ -160,6 +159,9 @@ module RokuBuilder
       end
       if(!options[:generate])
         raise InvalidOptions, "Missing component type"
+      end
+      if(!options[:brand])
+        options[:brand] = "core"
       end
       config = read_config()
       component_type = options[:generate].downcase
